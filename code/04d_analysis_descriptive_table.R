@@ -1,3 +1,6 @@
+# Load in the pre-processed datatables
+source(here("code", "03b_prep_read_datatable.R"))
+
 table_vars <- c(
   # "MMR_2005",
   # HDI_2023, 
@@ -82,10 +85,9 @@ dat_table_minimal <- dat_table |> droplevels()
 t_mmr_baseline <- dat_table_minimal |> 
   select(
     MMR_2005,
-    starts_with("recs_median_"),
+    all_of(paste0("recs_median_", vars_included)),
     all_of(table_vars)
   ) |> 
-  select(-contains(vars_not_included, ignore.case = FALSE)) |> 
   mutate(overall_row = "Overall sample:") |> 
   relocate(overall_row) |> 
   tbl_continuous(
@@ -97,10 +99,9 @@ t_mmr_baseline <- dat_table_minimal |>
 t_mmr_change <- dat_table_minimal |> 
   select(
     MMR_change,
-    starts_with("recs_median_"),
+    all_of(paste0("recs_median_", vars_included)),
     all_of(table_vars)
-  ) |> 
-  select(-contains(vars_not_included, ignore.case = FALSE)) |> 
+    ) |> 
   mutate(overall_row = "Overall sample:") |> 
   relocate(overall_row) |> 
   tbl_continuous(
@@ -112,10 +113,9 @@ t_mmr_change <- dat_table_minimal |>
 t_SBA_baseline <- dat_table_minimal |> 
   select(
     skilled_birth_min,
-    starts_with("recs_median_"),
+    all_of(paste0("recs_median_", vars_included)),
     all_of(table_vars)
   ) |> 
-  select(-contains(vars_not_included, ignore.case = FALSE)) |> 
   mutate(overall_row = "Overall sample:") |> 
   relocate(overall_row) |> 
   tbl_continuous(
@@ -127,10 +127,9 @@ t_SBA_baseline <- dat_table_minimal |>
 t_SBA_change <- dat_table_minimal |> 
   select(
     skilled_birth_change,
-    starts_with("recs_median_"),
+    all_of(paste0("recs_median_", vars_included)),
     all_of(table_vars)
   ) |> 
-  select(-contains(vars_not_included, ignore.case = FALSE)) |> 
   mutate(overall_row = "Overall sample:") |> 
   relocate(overall_row) |> 
   tbl_continuous(
@@ -142,10 +141,9 @@ t_SBA_change <- dat_table_minimal |>
 t_CPR_baseline <- dat_table_minimal |> 
   select(
     CPR_any_2005,
-    starts_with("recs_median_"),
+    all_of(paste0("recs_median_", vars_included)),
     all_of(table_vars)
   ) |> 
-  select(-contains(vars_not_included, ignore.case = FALSE)) |> 
   mutate(overall_row = "Overall sample:") |> 
   relocate(overall_row) |> 
   tbl_continuous(
@@ -157,10 +155,9 @@ t_CPR_baseline <- dat_table_minimal |>
 t_CPR_change <- dat_table_minimal |> 
   select(
     CPR_any_change,
-    starts_with("recs_median_"),
+    all_of(paste0("recs_median_", vars_included)),
     all_of(table_vars)
   ) |> 
-  select(-contains(vars_not_included, ignore.case = FALSE)) |> 
   mutate(overall_row = "Overall sample:") |> 
   relocate(overall_row) |> 
   tbl_continuous(
@@ -172,10 +169,9 @@ t_CPR_change <- dat_table_minimal |>
 
 t1 <- dat_table_minimal |> 
   select(
-    starts_with("recs_median_"),
+    all_of(paste0("recs_median_", vars_included)),
     all_of(table_vars)
   ) |> 
-  select(-contains(vars_not_included, ignore.case = FALSE)) |> 
   mutate(overall_row = "Overall sample:") |> 
   relocate(overall_row) |> 
   tbl_summary(
