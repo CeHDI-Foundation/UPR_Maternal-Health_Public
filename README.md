@@ -26,7 +26,7 @@ This repository:
 │   ├── 04a_analysis_MLM_forest_MH.R                    # Multilevel model: maternal-health recs vs. MMR + full thematic groupings vs. MMR
 │   ├── 04b_analysis_MLM_forest_SBA.R                   # Multilevel model: maternal-health recs vs. SBA + full thematic groupings vs. SBA
 │   ├── 04c_analysis_MLM_forest_CPR.R                   # Multilevel model: maternal-health recs vs. CPR + full thematic groupings vs. CPR
-│   ├── 04d_analysis_descriptive_table.R                # Country-level descriptive (Table 1) statistics
+│   ├── 04d_analysis_descriptive_table.R                # Country-level descriptive (Table 1+2) statistics
 │   ├── 05_plotting_forestplots_MLM_combined.R          # Combined forest plot across the three outcomes
 │   ├── DAG.R                                           # Directed acyclic graph used to guide covariate selection
 │   ├── external_data_OData.R                           # Pull indicator data from WHO GHO and other OData/API sources
