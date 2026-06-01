@@ -43,12 +43,9 @@ External datasets used (downloaded into `data/` or pulled programmatically into 
 
 - **UHRI** — UPR recommendations (`https://dataex.ohchr.org/uhri/export-results/export-full-en.xlsx`)
 - **WHO Global Health Observatory** — MMR, SBA, ANC4, institutional births, UHC sub-indices, immunization coverage, etc., via OData
-- **World Bank** — GDP per capita (PPP), literacy rates, contraceptive prevalence, Worldwide Governance Indicators
-- **UNDP Human Development Report 2025** — HDI and related composite indices
+- **World Bank** — GDP per capita (PPP) Worldwide Governance Indicators
 - **UNFPA** — Contraceptive prevalence (any method)
-- **V-Dem** — Varieties of Democracy indicators
-- **World Bank FCS list, OACPS, CARICOM, COMESA, ECSA, South Centre** — Country grouping memberships
-- **`wpp2024`** — UN World Population Prospects 2024 (population, fertility, life expectancy)
+- **World Bank FCS list** — Fragile and Conflict-affected Situations
 - **`necountries`** — Country geometries for mapping
 
 ## Requirements
