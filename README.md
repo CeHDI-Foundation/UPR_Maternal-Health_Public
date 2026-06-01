@@ -53,10 +53,7 @@ External datasets used (downloaded into `data/` or pulled programmatically into 
 - R (≥ 4.2 recommended)
 - [`pacman`](https://cran.r-project.org/package=pacman) to manage package installation: `install.packages("pacman")`
 
-Each script loads its dependencies via `pacman::p_load(...)` at the top, so packages will be installed on first run. Two GitHub-only packages are installed via `pacman::p_load_gh()` in `external_data_OData.R`:
-
-- `vdeminstitute/vdemdata`
-- `PPgp/wpp2024`
+Each script loads its dependencies via `pacman::p_load(...)` at the top, so packages will be installed on first run.
 
 ## Usage
 
