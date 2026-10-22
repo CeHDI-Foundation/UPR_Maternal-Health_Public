@@ -56,243 +56,317 @@ The direct download of the excel file is: <https://dataex.ohchr.org/uhri/export-
 
 Uncomment the section below in order to download the latest UHRI dataset and pre-process before the next step of classifcations of thematic groupings.
 
-<!-- ```{r} -->
-<!-- state_geo <- readRDS(here("output", "state_geo_enhanced.rds")) -->
+```{r}
+state_geo <- readRDS(here("output", "state_geo_enhanced.rds"))
 
-<!-- httr::GET("https://dataex.ohchr.org/uhri/export-results/export-full-en.xlsx", httr::write_disk(tf <- tempfile(fileext = ".xlsx"))) -->
-<!-- df_0 <-  readxl::read_xlsx(tf, -->
-<!--                            # Specify the column types, otherwise some show up as NA in R -->
-<!--                            col_types = c( -->
-<!--                              rep("text", 7), "date", rep("text", 7), "date")) |> -->
-<!--   janitor::clean_names();unlink(tf);rm(tf) -->
-<!-- df<-df_0 |> janitor::clean_names() |> -->
-<!--   # Add the date that the dataset was accessed from the UHRI website -->
-<!--   mutate(date_accessed = ymd(Sys.Date())) |> -->
-<!--   mutate(countries_concerned = str_remove(countries_concerned, "- "), -->
-<!--          reccomending_body = str_remove(reccomending_body, "- ") -->
-<!--   ) |> -->
-<!--   mutate( -->
-<!--     text1 = text, -->
-<!--     # text = str_remove_all(text, "&nbsp;"), -->
-<!--     # text = str_remove_all(text, "&nbsp"), -->
-<!--     text = str_replace_all(text, "’", "'"), -->
-<!--     text = str_replace_all(text, "“", "'"), -->
-<!--     text = str_replace_all(text, "”", "'"), -->
-<!--     text = str_replace_all(text, "\\( ", "\\("), -->
-<!--     text = str_replace_all(text, " \\)", "\\)"), -->
-<!--     text = str_replace_all(text, " ' s ", "'s "), -->
-<!--     text = str_replace_all(text, "' s ", "'s "), -->
-<!--     text = str_replace_all(text, "&nbsp;", " "), -->
-<!--     text = str_replace_all(text, "&nbsp", " "), -->
-<!--     text = str_replace_all(text, "&rsquo;", "'"), -->
-<!--     text = str_replace_all(text, "&ndash;|&#8209;", "-"), -->
-<!--     text = str_replace_all(text, "&ocirc;", "ô"), -->
-<!--     text = str_replace_all(text, "&ldquo;|&rdquo;", "'"), -->
-<!--     text = str_replace_all(text, "&uacute;", "ú"), -->
-<!--     text = str_replace_all(text, "&uuml;", "ü"), -->
-<!--     text = str_replace_all(text, "&amp;", "&"), -->
-<!--     text = str_replace_all(text, "&deg;", "°"), -->
-<!--     text = str_replace_all(text, "&eacute;", "é"), -->
-<!--     text = str_replace_all(text, "&egrave;", "è"), -->
-<!--     text = str_replace_all(text, "&lrm;", ""), -->
-<!--     text = str_replace_all(text, "&iacute;", "í"), -->
+# --- Uncomment to download a fresh extract -----------------------------------------------------
+# httr::GET(
+#   "https://dataex.ohchr.org/uhri/export-results/export-full-en.xlsx",
+#   httr::write_disk(tf <- tempfile(fileext = ".xlsx"))
+# )
+# df_0 <- readxl::read_xlsx(
+#   tf,
+#   # specify column types explicitly, otherwise some columns import as all-NA
+#   col_types = c(rep("text", 7), "date", rep("text", 7), "date")
+# ) |>
+#   janitor::clean_names() |>
+#   mutate(date_accessed = ymd(Sys.Date()))
+# 
+# unlink(tf); rm(tf)
+# saveRDS(df_0, here("data", "UHRI_extract_raw.rds"))
+# -----------------------------------------------------------------------------------------------
 
-<!--     text = str_squish(text), -->
-<!--     text = case_when(str_starts(text, "R ") ~ str_remove(text, "R "), -->
-<!--                      .default = text), -->
-<!--     # text = str_replace(text, " . ", ". "), -->
-<!--     # text = str_replace(text, ":.", ":"), -->
-<!--     # text = str_replace(text, ",.", ":"), -->
-<!--     text = str_remove_all(text, "\\[...\\]"), -->
-<!--     # text = str_replace_all(text, "([A-Za-z]+)'s([A-Za-z]+)", "\\1's \\2") -->
-<!--     text = str_replace_all(text, "non- communicable", "non-communicable"), -->
-<!--     text = str_replace_all(text, "l aw s on trans i tional", "laws on transitional"), -->
-<!--     text = str_replace_all(text, "sexual a buse", "sexual abuse"), -->
-<!--     text = str_replace_all(text, "ex ploit", "exploit"), -->
-<!--     text = str_replace_all(text, "heal thcare", "healthcare"), -->
-<!--     text = str_replace_all(text, " h ealth", " health"), -->
+df_0 <- readRDS(here("data", "UHRI_extract_raw.rds"))
 
-<!--   ) |> -->
-<!--   # Correct duplicated entries -->
-<!--   mutate( -->
-<!--     text = case_when( -->
-<!--       text == "137.197 Improve the socioeconomic situation of the Roma national minority, also by ensuring adequate living conditions and access to education and health care (Germany);" ~ "137.197 Fully implement the right to equal usage of minority languages and scripts, in compliance with Croatia’s legal framework, with a special focus on those regions where this right especially applies (Germany);", -->
-<!--       # text == "" -->
-<!--       .default = text -->
-<!--     ) -->
-<!--   ) |> -->
-<!--   arrange(countries_concerned, reccomending_body, document_publication_date) |> -->
-<!--   rename(document = document_symbol, body = reccomending_body) |> -->
-<!--   mutate( -->
-<!--     paragraph = case_when( -->
-<!--       # CASE 1: The text starts with "Recommendation No." -->
-<!--       # This detects the first pattern you described. -->
-<!--       # str_detect(text, "^Recommendation No\\.") ~ { -->
-<!--       #   # str_match() lets us capture parts of the text. -->
-<!--       #   # We look for "para. [number]: [number]" -->
-<!--       #   matches <- str_match(text, "para\\.\\s*(\\d+):\\s*(\\d+)") -->
-<!--       #   # We then take the captured numbers (the 2nd and 3rd elements from the match) -->
-<!--       #   # and paste them together with a dot, creating the "96.21" format. -->
-<!--       #   paste(matches[, 2], matches[, 3], sep = ".") -->
-<!--       # }, -->
-<!--       str_detect(text, "^Recommendation No") ~ { -->
-<!--         # This regex now finds the paragraph number, skips to the recommendation number, and captures both. -->
-<!--         # It works whether there is a colon or not. -->
-<!--         matches <- str_match(text, "para\\.\\s*(\\d+).*?(\\d+)\\.") -->
-<!--         paste(matches[, 2], matches[, 3], sep = ".") -->
-<!--       }, -->
+df_0 <- df_0 |> 
+  mutate(countries_concerned = countries_concerned |> 
+           replace_when(document_symbol == "A/HRC/22/3" ~ "Czechia")) # fixes "- Uzbekistan \n - Czechia" issue
 
-<!--       # NEW CASE: The text starts with "Recommendations contained in para." -->
-<!--       # str_detect(text, "^Recommendations contained in para") ~ str_match(text, "para\\.\\s*(\\d+)")[, 2], -->
-<!--       # str_detect(text, "^Recommendation(s)? contained in para(graph)?") ~ str_match(text, "[Pp]ara(?:graph)?\\s*(\\d+\\(?[a-z]?\\)?)")[, 2], -->
-<!--       str_detect(text, "^Recommendation(s)? (?:contained in|from) para(graph)?") ~ str_match(text, "[Pp]ara(?:graph)?\\s*(.*?):")[, 2], -->
-<!--       str_detect(text, "^Recommendation(s)? contained in ") ~ str_match(text, "contained in\\s*(\\d+\\(?[a-z]?\\)?)")[, 2], -->
+# 1st cycle's report for South-Sudan/Sudan contains 3 types of recommendations:
+# 1. reco. destined to Sudan
+# 2. reco. destined to South Sudan
+# 3. reco. destined to South Sudan and Sudan -> assign these to Sudan, duplicate rows and assign to South Sudan
+sudan_southSudan <- df_0 |> 
+  filter(document_symbol == "A/HRC/18/16", 
+         str_detect(countries_concerned,"South Sudan\r") == TRUE) |> 
+  mutate(countries_concerned = "South Sudan") 
 
-<!--       # CASE 2: The text starts with "para" or "paragraph" -->
-<!--       # This is the new case to handle paragraph-only identifiers. -->
-<!--       str_detect(text, "^[Pp]ara") ~ str_match(text, "[Pp]ara(?:graph)?\\.?\\s*(\\d+)")[, 2], -->
+df_0 <- df_0 |> 
+  mutate(countries_concerned = countries_concerned |>  
+           replace_when(
+  str_detect(countries_concerned,"South Sudan\r") ~ "Sudan"
+))
 
-<!--       # CASE 3: The text starts with a "number.number" format (e.g., "136.1 ...") -->
-<!--       # This must come before the single-number check to be matched correctly. -->
-<!--       str_detect(text, "^\\d+\\.\\d+") ~ str_extract(text, "^\\d+\\.\\d+"), -->
+df_0 <- df_0 |> 
+  bind_rows(sudan_southSudan)
 
-<!--       # CASE 4: The text starts with just one number (e.g., "1 ...") -->
-<!--       # This is the new case to handle single leading numbers. -->
-<!--       str_detect(text, "^\\d+") ~ str_extract(text, "^\\d+"), -->
+# combine the raw extract with manually extracted recommendations
+# (see the folder data/UPR_WG_docs/)
+df_0_merged <- bind_rows(df_0, readRDS(here("data", "UPR_cycles_missing", "extracted_recs", "recs_combined.rds"))) |> 
+  mutate(
+    across(c(provisional, manual_upload), \(x) case_when(is.na(x) ~ FALSE, .default = x))
+     )|> # Saint Lucia: in the UHRI export, the 2nd-cycle recommendations are wrongly recorded under
+  filter(!(                   # session 31 (Cycle 3). They are added with the correct session from the manual upload,
+    !manual_upload &          # so the mislabelled official rows are removed to avoid duplicates.
+      str_detect(coalesce(countries_concerned, ""), "Saint Lucia") &
+      str_detect(coalesce(upr_session, ""), "\\b31")
+  ))
 
-<!--       # If none of the above patterns match, return NA -->
-<!--       TRUE ~ NA_character_ -->
-<!--     ), -->
-<!--     upr_session = str_remove(upr_session, "- "), -->
-<!--     upr_session = str_split_i(upr_session, " - ", 1), -->
-<!--     upr_session_number = as.numeric(str_extract(upr_session, "\\d+")), -->
-<!--     upr_cycle = case_when( -->
-<!--       upr_session_number <= 12 ~ "Cycle 1", -->
-<!--       upr_session_number <= 26 ~ "Cycle 2", -->
-<!--       upr_session_number <= 40 ~ "Cycle 3", -->
-<!--       upr_session_number <= 54 ~ "Cycle 4", -->
-<!--     ), -->
-<!--     type = str_remove(type, "- "), -->
-<!--     upr_position = str_remove(upr_position, "- "), -->
-<!--     title_a = str_split_i(paragraph,"\\.",1), -->
-<!--     title_a = case_when(is.na(as.numeric(title_a)) ~ str_extract(title_a, "^\\d+"), -->
-<!--                         .default = title_a), -->
-<!--     title_b = str_pad(str_split_i(paragraph,"\\.",2), , width = 3, side = "left", pad = "0"), -->
-<!--     title_b = case_when(is.na(title_b) | str_starts(title_b, "\\(") ~ "0", -->
-<!--                         .default = title_b), -->
-<!--     title_2 = as.numeric(paste(title_a, title_b,sep = ".")) -->
-<!--   )|> -->
-<!--   arrange(upr_session_number) |> -->
-<!--   mutate( -->
-<!--     upr_session = fct_inorder(upr_session), -->
-<!--     upr_cycle = fct_inorder(upr_cycle) -->
-<!--   ) |> -->
-<!--   # select(-title_a, -title_b) |> -->
-<!--   relocate(paragraph, .after=document) |> -->
-<!--   relocate(title_2, upr_position, type, .after = paragraph) |> -->
-<!--   arrange(countries_concerned, body, document_publication_date, title_2, paragraph) |> -->
-<!--   rename( -->
-<!--     state_under_review = countries_concerned, -->
-<!--     document_code = document, -->
-<!--     session = upr_session, -->
-<!--     cycle = upr_cycle, -->
-<!--     recommending_state_upr = upr_reccomending_states, -->
-<!--     response_upr = upr_position -->
-<!--   ) |> -->
-<!--   mutate( -->
-<!--     state_under_review = case_when( -->
-<!--       state_under_review == "South Sudan - Sudan" ~ "South Sudan", -->
-<!--       state_under_review == "Uzbekistan - Czechia" ~ "Czechia", -->
-<!--       .default = state_under_review -->
-<!--     ) -->
-<!--   ) |> -->
-<!--   left_join(state_geo |> select(country, iso3, iso2) |> st_drop_geometry(), -->
-<!--             by = join_by(state_under_review == country)) |> -->
-<!--   mutate(date_extracted = Sys.Date()) -->
+df_0_merged_test <- df_0_merged |>
+  mutate(countries_concerned = str_remove(countries_concerned, "- "),
+    upr_session        = str_split_i(str_remove(upr_session, "- "), " - ", 1),
+    upr_session_number = as.numeric(str_extract(upr_session, "\\d+")))
+
+# check for duplicates in manually extracted recommendations present in raw extract.
+overlap_check <- df_0_merged_test |>
+  group_by(countries_concerned, upr_session_number) |>
+  summarise(
+    has_official = any(manual_upload == FALSE),
+    has_manual   = any(manual_upload == TRUE),
+    .groups = "drop"
+  ) |>
+  filter(has_official & has_manual)
+
+if (nrow(overlap_check) > 0) {
+  msg <- overlap_check |>
+    mutate(line = paste0("- ", countries_concerned, " (session number ", upr_session_number, ")")) |>
+    pull(line) |>
+    paste(collapse = "\n")
+  
+  stop(
+    "Duplicate coverage detected: the following country/session pairs have both an official ",
+    "and a manual entry. Please check the corresponding files before proceeding:\n",
+    msg
+  )
+}
 
 
-<!-- # Filter for only the UPR dataset -->
-<!-- upr_df <- df |> filter(body == "UPR") |> droplevels() |> -->
-<!--   mutate( -->
-<!--     recommending_state_upr = str_remove(recommending_state_upr, "^- "), -->
-<!--     recommending_states_count = case_when( -->
-<!--       is.na(recommending_state_upr) ~ NA, -->
-<!--       .default = str_count(recommending_state_upr, "-") %>% coalesce(0L)+1 -->
-<!--     ), -->
-<!--     text_2 = case_when( -->
-<!--       # CASE 1: Remove "Recommendation No. ..." prefix -->
-<!--       str_detect(text, "^Recommendation No") ~ str_remove(text, "^Recommendation No.*?\\d+\\.\\s*"), -->
-<!--       # str_detect(text, "^Recommendations contained in para") ~ str_remove(text, "^Recommendations contained in para\\.\\s*\\d+:\\s*"), -->
-<!--       str_detect(text, "^Recommendation(s)? contained in para(graph)?") ~ str_remove(text, "^Recommendation(?:s)? contained in para(?:graph)?.*?\\:\\s*"), -->
-<!--       str_detect(text, "^Recommendation(s)? contained in ") ~ str_remove(text, "^Recommendation(?:s)? contained in .*?\\:\\s*"), -->
+df<-df_0_merged |> janitor::clean_names() |>
+  # Add the date that the dataset was accessed from the UHRI website
+  mutate(date_accessed = ymd(Sys.Date())) |>
+  mutate(countries_concerned = str_remove(countries_concerned, "- "),
+         reccomending_body = str_remove(reccomending_body, "- ")
+  ) |>
+  mutate(
+    text1 = text,
+    # text = str_remove_all(text, "&nbsp;"),
+    # text = str_remove_all(text, "&nbsp"),
+    text = str_replace_all(text, "’", "'"),
+    text = str_replace_all(text, "“", "'"),
+    text = str_replace_all(text, "”", "'"),
+    text = str_replace_all(text, "\\( ", "\\("),
+    text = str_replace_all(text, " \\)", "\\)"),
+    text = str_replace_all(text, " ' s ", "'s "),
+    text = str_replace_all(text, "' s ", "'s "),
+    text = str_replace_all(text, "&nbsp;", " "),
+    text = str_replace_all(text, "&nbsp", " "),
+    text = str_replace_all(text, "&rsquo;", "'"),
+    text = str_replace_all(text, "&ndash;|&#8209;", "-"),
+    text = str_replace_all(text, "&ocirc;", "ô"),
+    text = str_replace_all(text, "&ldquo;|&rdquo;", "'"),
+    text = str_replace_all(text, "&uacute;", "ú"),
+    text = str_replace_all(text, "&uuml;", "ü"),
+    text = str_replace_all(text, "&amp;", "&"),
+    text = str_replace_all(text, "&deg;", "°"),
+    text = str_replace_all(text, "&eacute;", "é"),
+    text = str_replace_all(text, "&egrave;", "è"),
+    text = str_replace_all(text, "&lrm;", ""),
+    text = str_replace_all(text, "&iacute;", "í"),
 
-<!--       # CASE 2: Remove "para. ..." prefix -->
-<!--       str_detect(text, "^[Pp]ara") ~ str_remove(text, "^[Pp]ara(?:graph)?\\.?\\s*(\\d+\\.?)\\s*"), -->
-<!--       # CASE 3: Remove "number.number" prefix -->
-<!--       str_detect(text, "^\\d+\\.\\d+") ~ str_remove(text, "^\\d+\\.\\d+\\.?\\s*"), -->
-<!--       # CASE 4: Remove single number prefix -->
-<!--       str_detect(text, "^\\d+") ~ str_remove(text, "^\\d+\\.?\\s*"), -->
-<!--       # If no pattern matches, just keep the original text -->
-<!--       TRUE ~ text -->
-<!--     ), -->
-<!--     text_2 = case_when( -->
-<!--       str_detect(text_2, "^\\d+") ~ str_remove(text_2, "^\\d+\\.?\\s*"), -->
-<!--       TRUE ~ text_2 -->
-<!--     ), -->
-<!--     text_2 = case_when( -->
-<!--       str_detect(text_2, "^\\d+") ~ str_remove(text_2, "^\\d+\\.?\\s*"), -->
-<!--       TRUE ~ text_2 -->
-<!--     ), -->
-<!--     text_2 = str_remove(text_2,"^\\."), -->
-<!--     text_2 = str_remove(text_2,"^\\:"), -->
-<!--     text_2 = str_remove(text_2,"^\\;"), -->
-<!--     text_2 = str_squish(text_2) -->
-<!--   ) |> -->
-<!--   filter(!str_starts(text, "Response of "), -->
-<!--          response_upr != "Concerns/Observations") |> -->
-<!--   rowid_to_column() |> -->
+    text = str_squish(text),
+    text = case_when(str_starts(text, "R ") ~ str_remove(text, "R "),
+                     .default = text),
+    # text = str_replace(text, " . ", ". "),
+    # text = str_replace(text, ":.", ":"),
+    # text = str_replace(text, ",.", ":"),
+    text = str_remove_all(text, "\\[...\\]"),
+    # text = str_replace_all(text, "([A-Za-z]+)'s([A-Za-z]+)", "\\1's \\2")
+    text = str_replace_all(text, "non- communicable", "non-communicable"),
+    text = str_replace_all(text, "l aw s on trans i tional", "laws on transitional"),
+    text = str_replace_all(text, "sexual a buse", "sexual abuse"),
+    text = str_replace_all(text, "ex ploit", "exploit"),
+    text = str_replace_all(text, "heal thcare", "healthcare"),
+    text = str_replace_all(text, " h ealth", " health"),
 
-<!--   # Create a new column that lists recommending states by commas and semicolons -->
-<!--   # commas -->
-<!--   mutate(recommending_state_upr_comma = recommending_state_upr) |> -->
-<!--   separate_wider_delim(recommending_state_upr_comma, delim = "-", names_sep = "_", too_few = "align_start") |> -->
-<!--   mutate(across(starts_with("recommending_state_upr_comma"), ~ str_squish(.))) |> -->
-<!--   unite(col = "recommending_state_upr_comma", sep = ", ", starts_with("recommending_state_upr_comma"), na.rm = TRUE) |> -->
-<!--   mutate(recommending_state_upr_comma = case_when(recommending_state_upr_comma == "" ~ NA, .default = recommending_state_upr_comma)) |> -->
+  ) |>
+  # Correct duplicated entries
+  mutate(
+    text = case_when(
+      text == "137.197 Improve the socioeconomic situation of the Roma national minority, also by ensuring adequate living conditions and access to education and health care (Germany);" ~ "137.197 Fully implement the right to equal usage of minority languages and scripts, in compliance with Croatia’s legal framework, with a special focus on those regions where this right especially applies (Germany);",
+      # text == ""
+      .default = text
+    )
+  ) |>
+  arrange(countries_concerned, reccomending_body, document_publication_date) |>
+  rename(document = document_symbol, body = reccomending_body) |>
+  mutate(
+    paragraph = case_when(
+      # CASE 1: The text starts with "Recommendation No."
+      # This detects the first pattern you described.
+      # str_detect(text, "^Recommendation No\\.") ~ {
+      #   # str_match() lets us capture parts of the text.
+      #   # We look for "para. [number]: [number]"
+      #   matches <- str_match(text, "para\\.\\s*(\\d+):\\s*(\\d+)")
+      #   # We then take the captured numbers (the 2nd and 3rd elements from the match)
+      #   # and paste them together with a dot, creating the "96.21" format.
+      #   paste(matches[, 2], matches[, 3], sep = ".")
+      # },
+      str_detect(text, "^Recommendation No") ~ {
+        # This regex now finds the paragraph number, skips to the recommendation number, and captures both.
+        # It works whether there is a colon or not.
+        matches <- str_match(text, "para\\.\\s*(\\d+).*?(\\d+)\\.")
+        paste(matches[, 2], matches[, 3], sep = ".")
+      },
 
-<!--   # semicolons -->
-<!--   mutate(recommending_state_upr_semicolon = recommending_state_upr) |> -->
-<!--   separate_wider_delim(recommending_state_upr_semicolon, delim = "-", names_sep = "_", too_few = "align_start") |> -->
-<!--   mutate(across(starts_with("recommending_state_upr_semicolon"), ~ str_squish(.))) |> -->
-<!--   unite(col = "recommending_state_upr_semicolon", sep = "; ", starts_with("recommending_state_upr_semicolon"), na.rm = TRUE) |> -->
-<!--   mutate(recommending_state_upr_semicolon = case_when(recommending_state_upr_semicolon == "" ~ NA, .default = recommending_state_upr_semicolon)) |> -->
-<!--   mutate( -->
-<!--     recommending_state_upr_semicolon = str_replace(recommending_state_upr_semicolon,"State of Palestine\\*", "Palestine"), -->
-<!--     recommending_state_upr_semicolon = str_replace(recommending_state_upr_semicolon, "Holy See", "Vatican"), -->
-<!--     recommending_state_upr_semicolon = str_replace(recommending_state_upr_semicolon, "Timor; Leste", "Timor-Leste") -->
-<!--   ) |> -->
+      # NEW CASE: The text starts with "Recommendations contained in para."
+      # str_detect(text, "^Recommendations contained in para") ~ str_match(text, "para\\.\\s*(\\d+)")[, 2],
+      # str_detect(text, "^Recommendation(s)? contained in para(graph)?") ~ str_match(text, "[Pp]ara(?:graph)?\\s*(\\d+\\(?[a-z]?\\)?)")[, 2],
+      str_detect(text, "^Recommendation(s)? (?:contained in|from) para(graph)?") ~ str_match(text, "[Pp]ara(?:graph)?\\s*(.*?):")[, 2],
+      str_detect(text, "^Recommendation(s)? contained in ") ~ str_match(text, "contained in\\s*(\\d+\\(?[a-z]?\\)?)")[, 2],
 
-<!--   relocate(text1, text_2, .after = text) |> -->
-<!--   relocate(recommending_state_upr_comma, recommending_state_upr_semicolon, recommending_states_count, .after= recommending_state_upr) |> -->
-<!--   mutate(response_upr = factor( -->
-<!--     case_when( -->
-<!--       response_upr == "Supported/Noted" ~ "Partially supported", -->
-<!--       .default = response_upr), -->
-<!--     levels = c("Supported", "Partially supported", "Noted") -->
-<!--   ) -->
-<!--   ) -->
+      # CASE 2: The text starts with "para" or "paragraph"
+      # This is the new case to handle paragraph-only identifiers.
+      str_detect(text, "^[Pp]ara") ~ str_match(text, "[Pp]ara(?:graph)?\\.?\\s*(\\d+)")[, 2],
 
-<!-- saveRDS(df, here("data", "UHRI_full.rds")) -->
-<!-- saveRDS(df, here("data", paste0("UHRI_full_", Sys.Date(), ".rds"))) -->
-<!-- saveRDS(upr_df, here("data", "UHRI_UPR.rds")) -->
-<!-- saveRDS(upr_df, here("data", paste0("UHRI_UPR_", Sys.Date(), ".rds"))) -->
-<!-- ``` -->
+      # CASE 3: The text starts with a "number.number" format (e.g., "136.1 ...")
+      # This must come before the single-number check to be matched correctly.
+      str_detect(text, "^\\d+\\.\\d+") ~ str_extract(text, "^\\d+\\.\\d+"),
+
+      # CASE 4: The text starts with just one number (e.g., "1 ...")
+      # This is the new case to handle single leading numbers.
+      str_detect(text, "^\\d+") ~ str_extract(text, "^\\d+"),
+
+      # If none of the above patterns match, return NA
+      TRUE ~ NA_character_
+    ),
+    upr_session = str_remove(upr_session, "- "),
+    upr_session = str_split_i(upr_session, " - ", 1),
+    upr_session_number = as.numeric(str_extract(upr_session, "\\d+")),
+    upr_cycle = case_when(
+      upr_session_number <= 12 ~ "Cycle 1",
+      upr_session_number <= 26 ~ "Cycle 2",
+      upr_session_number <= 40 ~ "Cycle 3",
+      upr_session_number <= 54 ~ "Cycle 4",
+    ),
+    type = str_remove(type, "- "),
+    upr_position = str_remove(upr_position, "- "),
+    title_a = str_split_i(paragraph,"\\.",1),
+    title_a = case_when(is.na(as.numeric(title_a)) ~ str_extract(title_a, "^\\d+"),
+                        .default = title_a),
+    title_b = str_pad(str_split_i(paragraph,"\\.",2), , width = 3, side = "left", pad = "0"),
+    title_b = case_when(is.na(title_b) | str_starts(title_b, "\\(") ~ "0",
+                        .default = title_b),
+    title_2 = as.numeric(paste(title_a, title_b,sep = "."))
+  )|>
+  arrange(upr_session_number) |>
+  mutate(
+    upr_session = fct_inorder(upr_session),
+    upr_cycle = fct_inorder(upr_cycle)
+  ) |>
+  # select(-title_a, -title_b) |>
+  relocate(paragraph, .after=document) |>
+  relocate(title_2, upr_position, type, .after = paragraph) |>
+  arrange(countries_concerned, body, document_publication_date, title_2, paragraph) |>
+  rename(
+    state_under_review = countries_concerned,
+    document_code = document,
+    session = upr_session,
+    cycle = upr_cycle,
+    recommending_state_upr = upr_reccomending_states,
+    response_upr = upr_position
+  ) |>
+  mutate(
+    state_under_review = case_when(
+      state_under_review == "South Sudan - Sudan" ~ "South Sudan",
+      state_under_review == "Uzbekistan - Czechia" ~ "Czechia",
+      .default = state_under_review
+    )
+  ) |>
+  left_join(state_geo |> select(country, iso3, iso2) |> st_drop_geometry(),
+            by = join_by(state_under_review == country)) |>
+  mutate(date_extracted = Sys.Date())
+
+
+# Filter for only the UPR dataset
+upr_df <- df |> filter(body == "UPR") |> droplevels() |>
+  mutate(
+    recommending_state_upr = str_remove(recommending_state_upr, "^- "),
+    recommending_states_count = case_when(
+      is.na(recommending_state_upr) ~ NA,
+      .default = str_count(recommending_state_upr, "-") %>% coalesce(0L)+1
+    ),
+    text_2 = case_when(
+      # CASE 1: Remove "Recommendation No. ..." prefix
+      str_detect(text, "^Recommendation No") ~ str_remove(text, "^Recommendation No.*?\\d+\\.\\s*"),
+      # str_detect(text, "^Recommendations contained in para") ~ str_remove(text, "^Recommendations contained in para\\.\\s*\\d+:\\s*"),
+      str_detect(text, "^Recommendation(s)? contained in para(graph)?") ~ str_remove(text, "^Recommendation(?:s)? contained in para(?:graph)?.*?\\:\\s*"),
+      str_detect(text, "^Recommendation(s)? contained in ") ~ str_remove(text, "^Recommendation(?:s)? contained in .*?\\:\\s*"),
+
+      # CASE 2: Remove "para. ..." prefix
+      str_detect(text, "^[Pp]ara") ~ str_remove(text, "^[Pp]ara(?:graph)?\\.?\\s*(\\d+\\.?)\\s*"),
+      # CASE 3: Remove "number.number" prefix
+      str_detect(text, "^\\d+\\.\\d+") ~ str_remove(text, "^\\d+\\.\\d+\\.?\\s*"),
+      # CASE 4: Remove single number prefix
+      str_detect(text, "^\\d+") ~ str_remove(text, "^\\d+\\.?\\s*"),
+      # If no pattern matches, just keep the original text
+      TRUE ~ text
+    ),
+    text_2 = case_when(
+      str_detect(text_2, "^\\d+") ~ str_remove(text_2, "^\\d+\\.?\\s*"),
+      TRUE ~ text_2
+    ),
+    text_2 = case_when(
+      str_detect(text_2, "^\\d+") ~ str_remove(text_2, "^\\d+\\.?\\s*"),
+      TRUE ~ text_2
+    ),
+    text_2 = str_remove(text_2,"^\\."),
+    text_2 = str_remove(text_2,"^\\:"),
+    text_2 = str_remove(text_2,"^\\;"),
+    text_2 = str_squish(text_2)
+  ) |>
+  filter(!str_starts(text, "Response of "),
+         response_upr != "Concerns/Observations") |>
+  rowid_to_column() |>
+
+  # Create a new column that lists recommending states by commas and semicolons
+  # commas
+  mutate(recommending_state_upr_comma = recommending_state_upr) |>
+  separate_wider_delim(recommending_state_upr_comma, delim = "-", names_sep = "_", too_few = "align_start") |>
+  mutate(across(starts_with("recommending_state_upr_comma"), ~ str_squish(.))) |>
+  unite(col = "recommending_state_upr_comma", sep = ", ", starts_with("recommending_state_upr_comma"), na.rm = TRUE) |>
+  mutate(recommending_state_upr_comma = case_when(recommending_state_upr_comma == "" ~ NA, .default = recommending_state_upr_comma)) |>
+
+  # semicolons
+  mutate(recommending_state_upr_semicolon = recommending_state_upr) |>
+  separate_wider_delim(recommending_state_upr_semicolon, delim = "-", names_sep = "_", too_few = "align_start") |>
+  mutate(across(starts_with("recommending_state_upr_semicolon"), ~ str_squish(.))) |>
+  unite(col = "recommending_state_upr_semicolon", sep = "; ", starts_with("recommending_state_upr_semicolon"), na.rm = TRUE) |>
+  mutate(recommending_state_upr_semicolon = case_when(recommending_state_upr_semicolon == "" ~ NA, .default = recommending_state_upr_semicolon)) |>
+  mutate(
+    recommending_state_upr_semicolon = str_replace(recommending_state_upr_semicolon,"State of Palestine\\*", "Palestine"),
+    recommending_state_upr_semicolon = str_replace(recommending_state_upr_semicolon, "Holy See", "Vatican"),
+    recommending_state_upr_semicolon = str_replace(recommending_state_upr_semicolon, "Timor; Leste", "Timor-Leste")
+  ) |>
+
+  relocate(text1, text_2, .after = text) |>
+  relocate(recommending_state_upr_comma, recommending_state_upr_semicolon, recommending_states_count, .after= recommending_state_upr) |>
+  mutate(response_upr = factor(
+    case_when(
+      response_upr == "Supported/Noted" ~ "Partially supported",
+      .default = response_upr),
+    levels = c("Supported", "Partially supported", "Noted")
+  )
+  )
+
+saveRDS(upr_df, here("data", "UHRI_UPR.rds"))
+saveRDS(upr_df, here("data", paste0("UHRI_UPR_", Sys.Date(), ".rds")))
+```
 
 
 ### Load the pre-processed UPR recommendations
 ```{r}
 # Read in the UPR data
-uhri_upr <- readRDS(here("data", "UHRI_UPR_2026-05-19.rds")) # change the date to use a more recently generated file from the above code
+uhri_upr <- readRDS(here("data", "UHRI_UPR_2026-10-22.rds")) # change the date to use a more recently generated file from the above code
 ```
 
 
