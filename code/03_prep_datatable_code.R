@@ -467,7 +467,7 @@ cycle_years <- n_sup_2_long_cycle |> select(iso3, cycle, year) |> distinct() |>
   bind_rows(
     tribble(
       ~iso3, ~cycle, ~year,
-      "CAF", "Cycle 1", 2009,
+      # "CAF", "Cycle 1", 2009,
       "ZAF", "Cycle 1", 2008
     )
   ) |> 
@@ -484,12 +484,12 @@ cycle_years <- sdg_data |>
   select(state_under_review, iso3, cycle, session, upr_session_number) |> 
   distinct() |> 
   left_join(read_csv(here("data", "upr_sessions.csv")), join_by(upr_session_number == session)) |> 
-  bind_rows(
-    tribble(
-      ~state_under_review, ~iso3, ~cycle, ~session, ~upr_session_number, ~year,
-      "Central African Republic", "CAF", "Cycle 1", "12th session", 12, 2009,
-    )
-  ) |> 
+  # bind_rows(
+  #   tribble(
+  #     ~state_under_review, ~iso3, ~cycle, ~session, ~upr_session_number, ~year,
+  #     "Central African Republic", "CAF", "Cycle 1", "12th session", 12, 2009,
+  #   )
+  # ) |> 
   arrange(iso3, cycle) |> 
   filter(!is.na(iso3))
 

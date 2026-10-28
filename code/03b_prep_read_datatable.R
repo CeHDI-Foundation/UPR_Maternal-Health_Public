@@ -10,8 +10,8 @@ sdg_data <- readRDS(here("output", "UHRI_UPR_enhanced.rds")) |>
 
 # If you regenerate the datasets from the `03_prep_datable_code.R` file, 
 # update the date of the filename when reading it in
-dat_table <- readRDS(file = here("output", "dat_table_2026-10-22.rds"))
-dat_table_long <- readRDS(file = here("output", "dat_table_long_2026-10-22.rds"))
+dat_table <- readRDS(file = here("output", "dat_table_2026-10-26.rds"))
+dat_table_long <- readRDS(file = here("output", "dat_table_long_2026-10-26.rds"))
 
 # Pull the list of countries analyzed
 analysis_countries <- dat_table_long |> select(COUNTRY) |> distinct() |> pull(COUNTRY)
