@@ -1,0 +1,4 @@
+outcome,countries_with_data,observations,pct_missing,median_per_country,q1,q3,countries_lt3
+CPR,88,1664,1.6,19,19,19,1
+MMR,89,1683,0.5,19,19,19,0
+SBA,88,645,61.9,5,4,10,11

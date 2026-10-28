@@ -1,0 +1,424 @@
+---
+title: "UPR recommendations and maternal health: findings of the revision analyses"
+subtitle: "Answers to the reviewers' comments (scripts 07–17)"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    number_sections: true
+    theme: flatly
+---
+
+```{r setup, include = FALSE}
+# -----------------------------------------------------------------------------
+# 19_revision_findings.Rmd
+# Summarises the results of the revision scripts 07-17. It does NOT refit any model:
+# it reads the CSV and PNG files those scripts wrote in output/revision/.
+# Run scripts 07-18 first (fresh R session each), then knit this file
+# (place it in code/, like the other scripts):
+#   rmarkdown::render(here::here("code", "19_revision_findings.Rmd"),
+#                     output_dir = here::here("output", "revision"))
+# Missing result files are skipped with a note.
+# -----------------------------------------------------------------------------
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 4.5, dpi = 150)
+library(tidyverse)
+library(here)
+library(knitr)
+
+out_dir  <- here("output", "revision")
+outcomes <- c("MMR", "SBA", "CPR")
+mh       <- "Maternal_health"   # exposure of the paper
+
+# Read one result file (NULL + note if the script has not been run)
+res <- function(file) {
+  p <- file.path(out_dir, file)
+  if (!file.exists(p)) return(NULL)
+  read_csv(p, show_col_types = FALSE) |>
+    mutate(across(any_of("outcome"), \(x) factor(x, levels = outcomes)))
+}
+missing_note <- function(file) {
+  cat("\n> *Result file `", file, "` not found: run the corresponding script first.*\n\n", sep = "")
+}
+img <- function(file) {
+  p <- file.path(out_dir, file)
+  if (file.exists(p)) include_graphics(p) else missing_note(file)
+}
+
+# "−0.24% [−0.40, −0.08] *"
+fmt_eff <- function(pct, low, high, p) {
+  z <- \(x) ifelse(abs(x) < 0.005, 0, x)
+  sprintf("%.2f%% [%.2f, %.2f]%s", z(pct), z(low), z(high), ifelse(p < 0.05, " *", ""))
+}
+add_eff <- function(d) mutate(d, effect = fmt_eff(estimate_pct, conf.low_pct, conf.high_pct, p.value))
+
+# Wide table: rows = theme x outcome (or outcome only), columns = values of col_var
+wide <- function(d, col_var, caption = NULL, themes = NULL) {
+  if (!is.null(themes)) d <- filter(d, variable %in% themes)
+  d |>
+    add_eff() |>
+    mutate(col = factor(.data[[col_var]], levels = unique(.data[[col_var]]))) |>
+    select(Outcome = outcome, Theme = theme_label, col, effect) |>
+    pivot_wider(names_from = col, values_from = effect, values_fill = "–") |>
+    arrange(Outcome, Theme) |>
+    kable(caption = caption)
+}
+
+# Forest plot, one colour per value of col_var
+forest <- function(d, col_var, xlab = "% change per year per additional recommendation [95% CI]") {
+  d |>
+    mutate(col = factor(.data[[col_var]], levels = unique(.data[[col_var]]))) |>
+    ggplot(aes(estimate_pct, theme_label, colour = col)) +
+    geom_vline(xintercept = 0, linetype = 2, colour = "grey40") +
+    geom_pointrange(aes(xmin = conf.low_pct, xmax = conf.high_pct),
+                    position = position_dodge(width = 0.6), size = 0.25) +
+    facet_wrap(~ outcome, scales = "free_x") +
+    labs(x = xlab, y = NULL, colour = NULL) +
+    theme_classic() +
+    theme(legend.position = "bottom") +
+    guides(colour = guide_legend(ncol = 2))
+}
+
+# Maternal-health estimates in one line: "MMR −0.24% [...] *; SBA ...; CPR ..."
+mh_line <- function(d) {
+  if (is.null(d) || nrow(d) == 0) return("(not available)")
+  d |>
+    filter(variable == mh) |>
+    arrange(outcome) |>
+    add_eff() |>
+    mutate(txt = paste0("**", outcome, "** ", effect)) |>
+    pull(txt) |>
+    paste(collapse = "; ")
+}
+
+# Outcomes (maternal health) where an estimate expected to be ~0 is significant
+flag_sig <- function(d) {
+  if (is.null(d)) return(character(0))
+  d |> filter(variable == mh, p.value < 0.05) |> pull(outcome) |> as.character()
+}
+say_flags <- function(x, none = "none of the three outcomes") {
+  if (length(x) == 0) none else paste(x, collapse = ", ")
+}
+```
+
+# Reading this report
+
+- **Data**: corrected data (missing recommendations added for 6 countries, duplicates removed), 89 countries, 2005–2023 unless stated otherwise.
+- **Exposure**: number of recommendations of a theme received in UPR cycles 1–3. The paper's exposure is maternal health, excluding abortion-related recommendations. Women's health and health systems are shown as comparison themes.
+- **Unit of every estimate** (unless stated otherwise): **% change per year per additional recommendation** = (exp(b) − 1) × 100. For MMR it is a % change in MMR. For SBA and CPR it is a % change in the odds. A negative value is good for MMR; a positive value is good for SBA and CPR.
+- `*` = p < 0.05. Brackets = 95% confidence interval.
+- **SBA**: original coding of the data (100% set to 99%), pending Anshu's answer.
+- **Open choices**: the start year (2005) is kept as in the paper, pending Anshu's answer.
+
+# Overview: maternal-health estimates across all checks
+
+```{r overview, results = "asis"}
+s <- res("18_summary_maternal_health.csv")
+if (is.null(s)) missing_note("18_summary_maternal_health.csv") else
+  print(kable(s, col.names = c("Check", outcomes)[seq_len(ncol(s))],
+              caption = "Maternal-health recommendations. Rows marked (~0) are checks where no association is expected."))
+```
+
+# Main results on the corrected data (script 07)
+
+**Question.** What are the paper's main results once the data are corrected? These are the reference for every other analysis.
+
+**Model.** outcome ~ year × n + GDP + FCS + (1 + year | country). Reported: year × n, the difference in yearly slope per additional recommendation.
+
+```{r main, results = "asis"}
+m <- res("07_main_results.csv")
+if (is.null(m)) missing_note("07_main_results.csv") else {
+  cat("**Key result (maternal health):** ", mh_line(m), "\n\n", sep = "")
+  m |> add_eff() |>
+    select(Theme = theme_label, outcome, effect) |>
+    pivot_wider(names_from = outcome, values_from = effect) |>
+    kable(caption = "Main model, all themes") |> print()
+}
+```
+
+# Reviewer 2.2 — Supported vs noted recommendations (script 08)
+
+**Question.** Should the results be split by whether the State supported or only noted the recommendations?
+
+**What we did.** (1) We computed the share of supported recommendations per theme. (2) We re-ran the main model counting supported recommendations only.
+
+```{r r22, results = "asis"}
+sh <- res("08_supported_share.csv")
+if (is.null(sh)) missing_note("08_supported_share.csv") else
+  print(kable(sh, col.names = c("Theme", "Total", "Supported", "% supported"),
+              caption = "Share of supported recommendations (analysed countries)"))
+
+r22 <- res("08_supported_only.csv")
+if (is.null(r22)) missing_note("08_supported_only.csv") else {
+  cat("**Supported only (maternal health):** ", mh_line(filter(r22, analysis == "Supported only")), "\n\n", sep = "")
+  print(wide(r22, "analysis", "All vs supported-only recommendations"))
+}
+```
+
+```{r r22-plot, fig.height = 3.5}
+if (!is.null(r22)) forest(r22, "analysis")
+```
+
+# Reviewer 2.4 — What the model estimates for individual countries (script 09)
+
+**Question.** What do the models estimate, concretely, for a country?
+
+**Model (country i, year t, t = 0 in 2005).**
+
+$$\log(\text{MMR}_{it}) = \beta_0 + \beta_1\,\text{year}_t + \beta_2\,n_i + \beta_3\,(\text{year}_t \times n_i) + \gamma_1\,\text{GDP}_{it} + \gamma_2\,\text{FCS}_i + u_{0i} + u_{1i}\,\text{year}_t + \varepsilon_{it}$$
+
+For SBA and CPR, the same linear predictor gives the logit of the mean of a beta distribution. $u_{0i}$ and $u_{1i}$ are each country's own level and slope, and $\beta_3$ is the coefficient reported in the paper.
+
+```{r r24, out.width = "100%", results = "asis"}
+img("09_trajectories_observed_vs_fitted.png")
+```
+
+# Reviewer 2.5 — Is a straight line appropriate? (script 10)
+
+**Question.** A linear trend may not fit the real trajectories. Could a spline be used?
+
+**What we did.**
+- We plotted the trajectories on the model scale and the residuals over time.
+- We replaced the straight common trend with a natural cubic spline of year (3 df), keeping the year × recommendations term unchanged.
+- We re-ran the main model without 2020–2021 (the COVID-19 spike).
+
+```{r r25-img, out.width = "100%", results = "asis"}
+img("10_trajectories_model_scale.png")
+img("10_residuals.png")
+```
+
+```{r r25, results = "asis"}
+r25 <- res("10_nonlinearity.csv")
+if (is.null(r25)) missing_note("10_nonlinearity.csv") else {
+  cat("**Curved trend (maternal health):** ", mh_line(filter(r25, analysis == "Curved trend (spline)")), "\n\n",
+      "**Excluding 2020–2021:** ", mh_line(filter(r25, analysis == "Excluding 2020-2021")), "\n\n", sep = "")
+  print(wide(r25, "analysis", "Straight vs curved common trend, and without the COVID-19 years"))
+  aic <- r25 |>
+    filter(analysis != "Excluding 2020-2021", variable == mh) |>
+    select(outcome, analysis, aic) |>
+    pivot_wider(names_from = analysis, values_from = aic) |>
+    mutate(`Difference (curved − straight)` = `Curved trend (spline)` - `Main (straight line)`) |>
+    arrange(outcome)
+  print(kable(aic, digits = 1, caption = "Model fit, maternal health (AIC: lower = better; a difference below −2 favours the curve)"))
+}
+```
+
+```{r r25-plot, fig.height = 3.5}
+if (!is.null(r25)) forest(r25, "analysis")
+```
+
+# Reviewers 2.6 / 3.3 — Confounding and other human-rights pathways (script 11)
+
+**Question.** Could other factors explain the association, in particular treaty ratification and constitutional provisions?
+
+**What we did.** Each variable Z can change both the level and the slope of the outcome (+ Z + year × Z). Only a variable linked to the rate of change can confound the year × recommendations term.
+- Constitution: explicit health provision (WORLD Policy Analysis Center, as of June 2024).
+- CEDAW ratified by 2005 (OHCHR).
+- ICESCR ratified by 2005 (OHCHR).
+
+All models use the same countries.
+
+```{r r26, results = "asis"}
+cd <- res("11_confounders_distribution.csv")
+if (is.null(cd)) missing_note("11_confounders_distribution.csv") else
+  print(kable(cd, caption = "Number of analysed countries per value"))
+
+r26 <- res("11_confounders.csv")
+if (is.null(r26)) missing_note("11_confounders.csv") else {
+  cat("**Main model on the same countries:** ", mh_line(filter(r26, analysis == "Main model")), "\n\n",
+      "**+ all three:** ", mh_line(filter(r26, analysis == "+ all three")), "\n\n", sep = "")
+  print(wide(r26, "analysis", "Adding the confounders (with their interaction with year)"))
+}
+```
+
+```{r r26-plot, fig.height = 3.5}
+if (!is.null(r26)) forest(r26, "analysis")
+```
+
+*Caveat.* The constitution variable describes the constitution in force in 2024. 25 of the 89 countries adopted their current constitution in 2008 or later.
+
+# Reviewer 2.7 — Missing data (script 12)
+
+**Question.** How much outcome data is missing, and does it affect the results?
+
+```{r r27, results = "asis"}
+cov <- res("12_coverage.csv")
+if (is.null(cov)) missing_note("12_coverage.csv") else
+  print(kable(cov, caption = "Observations per outcome, 2005–2023 (outcome and GDP available)",
+              col.names = c("Outcome", "Countries with data", "Observations", "% missing",
+                            "Median per country", "Q1", "Q3", "Countries with < 3 obs.")))
+
+r27 <- res("12_sba_min3.csv")
+if (is.null(r27)) missing_note("12_sba_min3.csv") else {
+  cat("**SBA, countries with at least 3 observations (maternal health):** ",
+      mh_line(filter(r27, str_starts(analysis, ">="))), "\n\n", sep = "")
+  print(wide(r27, "analysis", "SBA: all countries vs countries with at least 3 observations"))
+}
+```
+
+# Reviewer 2.9 — Total recommendations per theme (script 13, Table S1)
+
+```{r r29, results = "asis"}
+s1 <- res("13_table_S1.csv")
+if (is.null(s1)) missing_note("13_table_S1.csv") else
+  s1 |> select(Theme = theme_label, `All UN Member States` = all_countries, `Analysed countries` = analysis) |>
+    kable(caption = "Recommendations per theme, UPR cycles 1–3") |> print()
+```
+
+# Reviewer 3.1a — Was improvement already there before the UPR? (scripts 14 and 15)
+
+**Question.** Were countries that received more recommendations already improving faster before their review? Does the association appear only after it?
+
+**Why the main model cannot answer this.** The main model uses one fixed total per country (cycles 1–3) for every year. Its main effect of n and the random intercept handle differences in **level**. They do not handle differences in **trajectory** that existed before the reviews, and the model does not use the timing of the reviews.
+
+## Mixed models with time counted from each country's first review (script 14)
+
+- **Negative controls** (expected ≈ 0): models on years when no country, or not this country, had been reviewed yet.
+- **Model C**: from 8 years before the first review, with a slope before and a change in slope at the review.
+
+$$y = \dots + \beta_4\,(r \times n) + \beta_5\,(p \times n) + \dots, \quad r = \text{years since first review},\; p = \max(r, 0)$$
+
+before = β4 (≈ 0 expected), change = β5, after = β4 + β5.
+
+```{r r31a-seg, results = "asis"}
+seg <- res("14_before_after.csv")
+if (is.null(seg)) missing_note("14_before_after.csv") else {
+  neg <- seg |> filter(str_detect(model, "^(B1|B2|E) "), quantity == "before")
+  c_before <- seg |> filter(model == "C Before/after (main)", quantity == "before")
+  cat("**Negative controls with a significant association (should be none):** ",
+      say_flags(unique(flag_sig(neg))), "\n\n",
+      "**Model C, before the first review (should be ≈ 0):** ", mh_line(c_before), "\n\n",
+      "**Model C, change at the review:** ", mh_line(filter(seg, model == "C Before/after (main)", quantity == "change")), "\n\n",
+      "**Model C, after the review:** ", mh_line(filter(seg, model == "C Before/after (main)", quantity == "after")), "\n\n",
+      sep = "")
+  seg |>
+    filter(variable == mh) |>
+    add_eff() |>
+    select(Outcome = outcome, Model = model, quantity, effect) |>
+    pivot_wider(names_from = quantity, values_from = effect, values_fill = "") |>
+    arrange(Outcome, Model) |>
+    kable(caption = "Maternal health: all models (before / change / after the first review)") |> print()
+}
+```
+
+```{r r31a-seg-plot, fig.height = 3.5}
+if (!is.null(seg)) seg |> filter(model == "C Before/after (main)") |> forest("quantity")
+```
+
+## Change over windows around the first review (script 15)
+
+**Design.** Each country is put on its own clock (T = year of its first review, 2008–2011). For each window we compute each country's change per year (log MMR, logit SBA/CPR). We regress it on the number of recommendations received at the first review. The model adjusts for the starting level, log GDP at the start, FCS, the constitution, CEDAW and ICESCR (all measured at the start of the window) and the review year. One row per country (OLS).
+
+- **Pre (placebo), T−3 → T**: no recommendation received yet, so the estimate should be ≈ 0.
+- **Post, T → T+1 … T+4**: time for implementation (mid-term report ≈ 2 years). Each window ends before the second review.
+- **Formal test**: after − before, from a stacked regression with standard errors clustered by country (a difference-in-differences with a continuous dose).
+
+```{r r31a-win, results = "asis"}
+win <- res("15_windows.csv")
+if (is.null(win)) missing_note("15_windows.csv") else {
+  pre <- win |> filter(str_starts(analysis, "Pre"))
+  cat("**Placebo window (should be ≈ 0), maternal health:** ", mh_line(pre),
+      ". Significant for: ", say_flags(flag_sig(pre)), ".\n\n",
+      "**T → T+2 (main lag), maternal health:** ", mh_line(filter(win, analysis == "Post: T to T+2")), "\n\n", sep = "")
+  print(wide(win, "analysis", "Change per year per additional recommendation at the first review"))
+  print(kable(win |> filter(variable == mh) |> select(outcome, analysis, n_obs) |>
+                pivot_wider(names_from = analysis, values_from = n_obs),
+              caption = "Number of countries per window (maternal health)"))
+}
+
+tst <- res("15_windows_post_vs_pre.csv")
+if (is.null(tst)) missing_note("15_windows_post_vs_pre.csv") else {
+  sig <- tst |> filter(variable == mh, p.value < 0.05) |>
+    mutate(txt = paste0(outcome, " (", str_remove(analysis, "Difference: Post: "), ")")) |> pull(txt)
+  cat("**Difference after − before, significant for maternal health in:** ",
+      say_flags(sig, none = "no outcome and no window"), ".\n\n", sep = "")
+  print(wide(tst, "analysis", "Formal test: association after the review − association before it"))
+}
+```
+
+```{r r31a-win-plot, fig.height = 4}
+if (!is.null(win)) forest(win |> mutate(analysis = fct_rev(factor(analysis, levels = unique(analysis)))),
+                          "analysis", xlab = "% change per year per additional recommendation at the first review [95% CI]")
+```
+
+*Caveat.* Most countries received 0 or 1 maternal-health recommendations at their first review, so power is low: a non-significant difference does not show that there is no effect.
+
+# Reviewer 3.1b — Exposure varying over time (scripts 16 and 17)
+
+**Question.** In the paper, each country has one fixed total for every year, including recommendations it had not yet received. The exposure should vary over time.
+
+## Cumulative count of recommendations received so far (script 16)
+
+The count is 0 before the first review, then cycle 1, then cycles 1 + 2, then cycles 1 + 2 + 3. Each review is counted from L years after it (L = 0, 1, 3). **Unit: % difference in the outcome (a shift in level relative to the country's own trend), not per year.**
+
+```{r r31b-tv, results = "asis"}
+tv <- res("16_time_varying.csv")
+if (is.null(tv)) missing_note("16_time_varying.csv") else {
+  cat("**Curved trend, lag 1 (maternal health):** ", mh_line(filter(tv, analysis == "Curved trend, lag 1")), "\n\n", sep = "")
+  print(wide(tv, "analysis", "% difference in the outcome per additional recommendation already received"))
+}
+```
+
+## Each review at its exact date, with a lag and a pre-review test (script 17)
+
+$$E_{it}(L) = \sum_k n_{ik}\,\max(\text{YEAR} - T_{ik} - L,\,0)$$
+
+This is the number of "recommendation-years" accumulated since each review k, counted from L years after it.
+
+- λ = slope difference **before** the first review per (future) recommendation. It should be ≈ 0.
+- θ = change in slope per recommendation, from L years after the review that issued it.
+
+Both are in % per year per recommendation, with a curved common trend.
+
+```{r r31b-ry, results = "asis"}
+ry <- res("17_reviews_lag.csv")
+if (is.null(ry)) missing_note("17_reviews_lag.csv") else {
+  lam <- filter(ry, str_starts(quantity, "lambda"))
+  th  <- filter(ry, str_starts(quantity, "theta"))
+  cat("**λ at L = 2 (should be ≈ 0), maternal health:** ", mh_line(filter(lam, analysis == "L = 2")), "\n\n",
+      "**θ at L = 2, maternal health:** ", mh_line(filter(th, analysis == "L = 2")), "\n\n", sep = "")
+  print(wide(lam, "analysis", "λ: difference in slope before the first review"))
+  print(wide(th,  "analysis", "θ: change in slope after each review, by lag L"))
+}
+```
+
+# What this means for the response
+
+```{r conclusions, results = "asis"}
+# Checks where no association is expected but one is found (maternal health)
+placebo <- list(
+  "Negative controls B1, B2, E (script 14)" =
+    if (!is.null(seg)) filter(seg, str_detect(model, "^(B1|B2|E) "), quantity == "before"),
+  "Model C, before the first review (script 14)" =
+    if (!is.null(seg)) filter(seg, model == "C Before/after (main)", quantity == "before"),
+  "Window T−3 → T (script 15)" =
+    if (!is.null(win)) filter(win, str_starts(analysis, "Pre")),
+  "λ, L = 2 (script 17)" =
+    if (!is.null(ry)) filter(ry, str_starts(quantity, "lambda"), analysis == "L = 2")
+)
+tab <- imap_dfr(placebo, \(d, nm) tibble(
+  Check = nm,
+  `Pre-existing difference found for` = say_flags(unique(flag_sig(d)), none = "none")
+))
+print(kable(tab, caption = "Maternal health: checks of a difference BEFORE the reviews (expected: none)"))
+```
+
+**How to read it for the response to the reviewers.**
+
+- **Robustness (R2.2, R2.5, R2.7).** Compare each row of the overview table with the main result. If the sign and size are similar, the original finding is robust to that choice.
+- **Confounding (R2.6/R3.3).** Compare "Main model" and "+ all three" on the same countries. A smaller estimate means part of the association is shared with these human-rights pathways.
+- **Timing (R3.1).** The paper's model shows that countries with more recommendations improved faster over 2005–2023. A causal reading needs (1) no difference before the reviews (table above) and (2) a difference after them. Where a pre-existing difference is found, the response should say so and soften the claim for that outcome.
+
+**Open points.**
+
+- SBA coding (100% → 99%) and the 2005 start year: waiting for Anshu's answer.
+- Script 15 has low power: a longer placebo window (`pre_start <- -8`) could be added as a sensitivity analysis.
+- The constitution variable is known only as of 2024 (see the confounding section).
+
+# Session information
+
+```{r session}
+sessionInfo()
+```

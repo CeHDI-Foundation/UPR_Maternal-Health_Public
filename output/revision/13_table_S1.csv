@@ -1,0 +1,30 @@
+variable,all_countries,analysis,theme_label
+health_related,18534,10036,Health-related
+GBV,11675,6321,GBV and harmful practices
+CAH,5111,2868,Child and adolescent health
+health_systems,3038,1589,Health systems and services
+SRHR,1524,908,Other SRHR (sexual health/wellbeing/education)
+sexual_health,1451,879,Sexual health and wellbeing
+maternal_health,715,487,"Maternal health, including abortion-related"
+other_health_related,579,229,Other health-related
+Maternal_health,576,413,"Maternal health, excluding abortion (exposure used in the paper)"
+HIV,511,371,HIV/AIDS and STIs
+WASH,462,303,Water and sanitation
+women,444,267,Women's health
+migrant_health,416,62,Refugee and migrant health
+disabilities,395,160,Disabilities and health
+abortion,386,162,Abortion
+incarcerated,385,152,Health of incarcerated persons
+nutrition,335,246,Nutrition
+mental_health,312,111,Mental health
+emergencies,269,140,Health emergencies
+contraception,268,161,Family planning
+sexual_education,234,121,Sexual education
+ncd,84,37,Non-communicable diseases
+LGBTI,78,26,Health of LGBTQI persons
+vaccinations,77,37,"Vaccines, pharmaceuticals, and health products"
+TB_malaria_NTD,73,65,"TB, malaria, and NTDs"
+communicable,50,44,Communicable diseases
+TB_malaria,48,42,TB and malaria
+NTD,26,23,Neglected tropical diseases
+occupational_health,7,5,Occupational health
